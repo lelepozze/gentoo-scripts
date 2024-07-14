@@ -1,0 +1,986 @@
+#!/bin/bash
+################################### read -eME ####################################
+# This script is made for automate the installation of Gentoo-Linux on my
+# machine (e.g. 82Y5 Legion Slim 5 14APH8). I want to automatate the
+# compiling of:
+# 	* initial builing of the system with:
+# 		* NVIDIA drivers
+# 		* grub or efitools for bootloader
+# 		* fuse and ntfs3g
+# 	* a minimal GNOME desktop environment on wayland
+#	* pipewire for audio
+#	* neovim
+#	* sudo
+#	* IDK
+
+########### Colors ############################################################
+
+c0="\e[38m\033[0m" # alias white normal
+c1="\e[35m\033[1m" # alias purple bold
+c2="\e[37m\033[1m" # alias grey bold
+c3="\e[38m\033[1m" # alias white bold
+
+red="\e[31m\033[1m"
+blue="\e[34m\033[1m"
+green="\e[32m\033[1m"
+yellow="\e[33m\033[1m"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function gentoo_logo(){
+    echo -e "
+	${c1}         -/oyddmdhs+:.
+	${c1}    -o${c2}dNMMMMMMMMNNmhy+${c1}-\`
+	${c1}   -y${c2}NMMMMMMMMMMMNNNmmdhy${c1}+-
+	${c1} \`o${c2}mMMMMMMMMMMMMNmdmmmmddhhy${c1}/\`
+	${c1} om${c2}MMMMMMMMMMMN${c1}hhyyyo${c2}hmdddhhhd${c1}o\`
+	${c1}.y${c2}dMMMMMMMMMMd${c1}hs++so/s${c2}mdddhhhhdm${c1}+\`
+	${c1} oy${c2}hdmNMMMMMMMN${c1}dyooy${c2}dmddddhhhhyhN${c1}d.
+	${c1}  :o${c2}yhhdNNMMMMMMMNNNmmdddhhhhhyym${c1}Mh
+	${c1}    .:${c2}+sydNMMMMMNNNmmmdddhhhhhhmM${c1}my
+	${c1}       /m${c2}MMMMMMNNNmmmdddhhhhhmMNh${c1}s:
+	${c1}    \`o${c2}NMMMMMMMNNNmmmddddhhdmMNhs${c1}+\`
+	${c1}  \`s${c2}NMMMMMMMMNNNmmmdddddmNMmhs${c1}/.
+	${c1} /N${c2}MMMMMMMMNNNNmmmdddmNMNdso${c1}:\`
+	${c1}+M${c2}MMMMMMNNNNNmmmmdmNMNdso${c1}/-
+	${c1}yM${c2}MNNNNNNNmmmmmNNMmhs+/${c1}-\`
+	${c1}/h${c2}MMNNNNNNNNMNdhs++/${c1}-\`
+	${c1}\`/${c2}ohdmmddhys+++/:${c1}.\`
+	${c1}  \`-//////:--.${c0}
+    "
+}
+
+function new_shell(){
+    bash --rcfile <(echo "PS1='($1) \[\e[01;31m\]\h\[\e[01;34m\] \w \$\[\e[00m\] '") -i 
+}
+
+function any_key(){
+    echo
+    echo -e "Press ${c1}any${c0} key to continue..."
+    read
+}
+
+function disclaimer_main(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64"
+    stage3_link="https://www.gentoo.org/downloads/"
+    echo
+    echo -e "This script was made for automate the installation of Gentoo-Linux. This script"
+    echo -e "was not created to replace the Gentoo Handbook. This script comes without"
+    echo -e "warrany, so use it at your own risk. The link for the Gentoo Handbook is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+    echo -e "Some stage3 files can be found at this link:"
+    echo -e "${c1}${stage3_link}${c0}."
+    echo -e "If you are unsure which stage file is suited for your usage"
+    echo -e "you can use ${c1}desktop profile | systemd${c0}."
+}
+
+
+
+function title(){
+    if [[ $chroot_use == 1 ]]; then
+        echo -e "${c1}(chroot) Gentoo Linux Installer ${c0}"
+    else
+        echo -e "${c1}Gentoo Linux Installer ${c0}"
+    fi
+}
+
+function blink(){
+    #printf 'Working'
+    for ((i = 0; i < 5; ++i)); do
+        for ((j = 0; j < 4; ++j)); do
+            printf .
+            sleep 0.1
+            printf '\b'
+            sleep 0.1
+        done
+        #printf '\b\b\b\b    \b\b\b\b'
+    done
+    #printf '....done\n'
+}
+
+function improved_read(){
+    read -ep $'\e[35m\033[1m>\e[38m\033[0m\e[38m\033[1m ' menu menu_2 menu_3 menu_4 menu_5 menu_6 menu_7 menu_8 menu_9 menu_10
+    echo -ne "${c0}"
+}
+
+function main_menu(){
+    title "${1}"
+    disclaimer_main
+    gentoo_logo
+    echo -e "${c1}Main menu${c0}"
+    echo -ne "
+    ${c1}1${c0}) Run a shell
+    ${c1}2${c0}) Network menu
+    ${c1}3${c0}) Partition menu
+    ${c1}4${c0}) Download/extract stage3 file
+    ${c1}5${c0}) Chrooting
+    ${c1}6${c0}) Installing the system
+    ${c1}7${c0}) Setting the system (systemd)
+    ${c1}8${c0}) Setting the system (openrc)
+    ${c1}9${c0}) Ccnfigure the bootloader
+    ${c1}10${c0}) Finishing
+    ${c1}11${c0}) Extra
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+        case $menu in
+            1) clear ; gentoo_logo ; new_shell "shell" ; clear ; main_menu ;; 
+            2) clear ; network_menu ; clear ; main_menu ;;
+            3) clear ; partition_menu ; clear ; main_menu ;;
+	        4) clear ; stage3_menu ; clear ; main_menu ;;
+            5) clear ; chroot_menu ; clear ; main_menu ;;
+            6) clear ; installation_menu ; clear ; main_menu ;;
+            7) clear ; system_menu_systemd ; clear ; main_menu ;;
+            8) clear ; system_menu_openrc ; clear ; main_menu ;;
+            9) clear ; bootloader_menu ; clear ; main_menu ;;
+            10) clear ; finish_menu ; clear ; main_menu ;;
+            11) clear ; extra_menu ; clear ; main_menu ;;
+            q) clear ; exit 0 ;;
+            exit) clear ; exit 0 ;;
+            *) clear ; main_menu ;; #echo -e $red"Wrong option."$clear; WrongCommand;;
+        esac
+}
+
+function disclaimer_network(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Networking"
+    echo
+    echo -e "The link for the Gentoo Handbook for the network part is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function network_menu(){
+    title "${1}"
+    echo -e "${c1}Network menu${c0}"
+    disclaimer_network
+    echo
+    echo -ne "
+    ${c1}1${c0}) shell (network)
+    ${c1}2${c0}) ip addr
+    ${c1}3${c0}) ifconfig
+    ${c1}4${c0}) Ping test (ping to gentoo.org)
+    ${c1}5${c0}) Ping test (ping to 8.8.8.8)
+    ${c1}6${c0}) Public IP test (check your public IP on ifconfig.me)
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1) clear ; new_shell "network" ; clear ; network_menu ;;
+        2) clear ; ip addr ; network_menu ; any_key ; clear ;;
+        3) clear ; ifconfig ; network_menu ; any_key ; clear ;;
+        4) clear ; ping -c 3 gentoo.org ; network_menu ; any_key ; clear ;;
+        5) clear ; ping -c 3 8.8.8.8 ; network_menu ; any_key ; clear ;;
+        6) clear ; curl ifconf.me ; network_menu ; any_key ; clear ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function disclaimer_partition(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Disks"
+    echo
+    echo -e "The link for the Gentoo Handbook for the network part is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function partition_menu(){
+    title "${1}"
+    echo -e "${c1}Partition menu${c0}"
+    disclaimer_partition
+    echo
+    echo "There are this devices on your computer:"
+    disks=$(fdisk -l | grep Disk | grep /dev)
+    echo -e "${c1}${disks}${c0}"
+    if [[ $UID != 0 ]]; then
+        echo -e "N.B. Run this script as ${c1}root${c0}"
+    fi
+    echo -ne "
+    ${c1}1${c0}) shell (partition)
+    ${c1}2${c0}) fdisk -l
+    ${c1}3${c0}) fdisk (insert device name)
+    ${c1}4${c0}) parted
+    ${c1}5${c0}) cfdisk (insert device name)
+    ${c1}6${c0}) gdisk (insert device name)
+    ${c1}7${c0}) mkfs.ext4 (insert partition name)
+    ${c1}8${c0}) mkfs.vfat
+    ${c1}9${c0}) mkswap & swapon
+    ${c1}0${c0}) empty (maybe implement btrfs)
+    ${c1}m${c0}) Mount the partition (insert partition name)
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1) clear ; new_shell "partition" ; clear ; partition_menu ;;
+        2) clear ; fdisk -l | less ; clear ; partition_menu ;;
+        3) clear ; fdisk "${menu_2}" ; any_key ; clear; partition_menu ;;
+        4) clear ; parted ; any_key ; clear ; partition_menu ;;
+        5) clear ; cfdisk "${menu_2}" ; any_key ; clear; partition_menu ;;
+        6) clear ; gdisk  "${menu_2}"; any_key ; clear; partition_menu ;;
+        7) clear ; mkfs.ext4 "${menu_2}" ; any_key ; clear ; partition_menu ;;
+        8) clear ; mkfs.vfat -F 32 "${menu_2}"; any_key ; clear ; partition_menu ;;
+        9) clear ; mkswap "${menu_2}" ; swapon "${menu_2}"; any_key ; clear ; partition_menu ;;
+        0) clear ; echo ; any_key ; clear ; partition_menu ;;
+        m) clear ; create_gentoo_folders ; mount "${menu_2}" /mnt/gentoo ; any_key ; clear ; partition_menu ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function create_gentoo_folders(){
+    mkdir --parents /mnt/gentoo
+    mkdir --parents /mnt/gentoo/efi
+}
+
+function disclaimer_stage3(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Stage"
+    echo
+    echo -e "The link for the Gentoo Handbook for the stage3 part is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+    echo -e "You can use the ${c1}name${c0} of the file you want to download or you can select"
+    echo -e "it using the ${c1}number${c0} in the list."
+}
+
+function stage3_menu(){
+    title "${1}"
+    echo -e "${c1}stage3 menu${c0}"
+    disclaimer_stage3
+    echo
+    echo -ne "
+    ${c1}1${c0}) desktop profile | systemd (${c1}desktop-systemd${c0})
+    ${c1}2${c0}) desktop profile | openrc (${c1}desktop-openrc${c0})
+    ${c1}3${c0}) systemd (${c1}systemd${c0})
+    ${c1}4${c0}) openrc (${c1}openrc${c0})
+    ${c1}5${c0}) hardened | systemd (${c1}hardened-systemd${c0})
+    ${c1}6${c0}) hardened | openrc (${c1}hardened-openrc${c0})
+    ${c1}7${c0}) hardened | selinux | openrc (${c1}hardened-selinux-openrc${c0})
+    ${c1}8${c0}) hardened | nomultilib | openrc (${c1}hardened-nomultilib-openrc${c0})
+    ${c1}9${c0}) hardened | nomultilib | selinux | openrc (${c1}hardened-nomultilib-selinux-openrc${c0})
+    ${c1}10${c0}) no multilib | openrc (${c1}nomultilib-openrc${c0})
+    ${c1}11${c0}) no multilib | systemd (${c1}nomultilib-systemd${c0})
+    ${c1}12${c0}) llvm | openrc (${c1}llvm-openrc${c0})
+    ${c1}13${c0}) llvm | systemd (${c1}llvm-systemd${c0})
+    ${c1}14${c0}) musl | openrc (${c1}musl${c0})
+    ${c1}15${c0}) musl | llvm | openrc (${c1}musl-llvm${c0})
+    ${c1}16${c0}) musl | hardened | openrc (${c1}musl-hardened${c0})
+    ${c1}17${c0}) x32 | openrc (${c1}x32-openrc${c0})
+    ${c1}18${c0}) x32 | systemd (${c1}x32-systemd${c0})
+    ${c1}19${c0}) split-usr | openrc (${c1}x32-systemd${c0})
+    ${c1}v${c0}) verify (${c1}insert file${c0})
+    ${c1}e${c0}) extract tar file (${c1}insert file${c0})
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1 | desktop-systemd) clear ; download_stage3_file "desktop-systemd" ; any_key ; clear ; stage3_menu ;;
+        2 | desktop-openrc) clear ; download_stage3_file "desktop-openrc" ; any_key ; clear ; stage3_menu ;;
+        3 | systemd) clear ; download_stage3_file "systemd" ; any_key ; clear ; stage3_menu ;;
+        4 | openrc) clear ; download_stage3_file "openrc" ; any_key ; clear ; stage3_menu ;;
+        5 | hardened-systemd) clear ; download_stage3_file "hardened-systemd" ; any_key ; clear ; stage3_menu ;;
+        6 | hardened-openrc) clear ; download_stage3_file "hardened-openrc" ; any_key ; clear ; stage3_menu ;;
+        7 | hardened-selinux-openrc) clear ; download_stage3_file "hardened-selinux-openrc" ; any_key ; clear ; stage3_menu ;;
+        8 | hardened-nomultilib-openrc) clear ; download_stage3_file "hardened-nomultilib-openrc" ; any_key ; clear ; stage3_menu ;;
+        9 | hardened-nomultilib-selinux-openrc) clear ; download_stage3_file "hardened-nomultilib-selinux-openrc" ; any_key ; clear ; stage3_menu ;;
+        10 | nomultilib-openrc) clear ; download_stage3_file "nomultilib-openrc" ; any_key ; clear ; stage3_menu ;;
+        11 | nomultilib-systemd) clear ; download_stage3_file "nomultilib-systemd" ; any_key ; clear ; stage3_menu ;;
+        12 | llvm-openrc) clear ; download_stage3_file "llvm-openrc" ; any_key ; clear ; stage3_menu ;;
+        13 | llvm-systemd) clear ; download_stage3_file "llvm-systemd" ; any_key ; clear ; stage3_menu ;;
+        14 | musl) clear ; download_stage3_file "musl" ; any_key ; clear ; stage3_menu ;;
+        15 | musl-llvm) clear ; download_stage3_file "musl-llvm" ; any_key ; clear ; stage3_menu ;;
+        16 | musl-hardened) clear ; download_stage3_file "musl-hardened" ; any_key ; clear ; stage3_menu ;;
+        17 | x32-openrc) clear ; download_stage3_file "x32-openrc" ; any_key ; clear ; stage3_menu ;;
+        18 | x32-systemd) clear ; download_stage3_file "x32-systemd" ; any_key ; clear ; stage3_menu ;;
+        19 | openrc-splitusr) clear ; download_stage3_file "openrc-splitusr" ; any_key ; clear ; stage3_menu ;;
+        v) verify_stage3_tarball "${menu_2}" ; any_key ; clear; stage3_menu ;;
+        e) clear ; extract_tar "${menu_2}" ; any_key ; clear ; stage3_menu ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function download_stage3_file(){
+    if [[ $1 == *"x32"* ]]; then
+        url_part_1="https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-"
+    else
+        url_part_1="https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-"
+    fi
+    url_part_2="${1}"
+    url_part_3="/"
+    url="${url_part_1}${url_part_2}${url_part_3}"
+    wget -r -nH --cut-dirs=4 --no-parent --accept="*.tar.xz, *.tar.xz.sha256" --reject="*.html, *.txt, *.asc, *.gz, *.DIGESTS" "${url}"
+}
+
+function verify_stage3_tarball(){
+    if [[ $1 == *"x32"* ]]; then
+        stage3_file="stage3-${1}"
+    else
+        stage3_file="stage3-amd64-${1}"
+    fi
+    filename_stage3_tar=$(ls | grep ${stage3_file}-*.tar.xz | head -n 1)
+    filename=$(basename ${filename_stage3_tar} .tar.xz)
+    verify_sha256=$(sha256sum --check "${filename_stage3_tar}.sha256" 2>/dev/null | head -n 1)
+    if [[ $verify_sha256 == *"OK"* ]]; then
+        echo -e "${green}Passed${c0}"
+    else
+        echo -e "${red}Not passed${c0}"
+    fi
+}
+
+function extract_tar(){
+    if [ -z "${1}" ]; then
+        echo -e "Please insert the file you want to use"
+    else
+        stage3_file="stage3-amd64-${1}"
+        filename_stage3_tar=$(ls | grep ${stage3_file}-*.tar.xz | head -n 1)
+        if [ -z "${filename_stage3_tar}" ]; then
+            echo -e "Please insert the correct filename"
+        else
+            cp "${filename_stage3_tar}" "/mnt/gentoo/${filename_stage3_tar}"
+            current_folder=$(pwd)
+            cd /mnt/gentoo/
+            tar xpvf ${filename_stage3_tar} --xattrs-include='*.*' --numeric-owner
+            cd ${current_folder}
+        fi
+    fi
+}
+
+function disclaimer_chroot(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Base"
+    echo
+    echo -e "The link for the Gentoo Handbook for the network part is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function chroot_menu(){
+    title "${1}"
+    echo -e "${c1}chrooting menu${c0}"
+    disclaimer_chroot
+    echo
+    echo -ne "
+    ${c1}1${c0}) Edit make.conf file (using nano)
+    ${c1}2${c0}) Copy file resolv.conf
+    ${c1}3${c0}) Mount filesystems
+    ${c1}4${c0}) Copy the script
+    ${c1}5${c0}) chroot in /mnt/gentoo
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1) clear ; nano "/mnt/gentoo/etc/portage/make.conf" ; clear ; chroot_menu ;;
+        2) clear ; cp --dereference /etc/resolv.conf /mnt/gentoo/etc/ ; any_key ; clear ; chroot_menu ;;
+        3) clear ; mount_gentoo ; any_key ; clear ; chroot_menu;;
+        4) clear ; cp gentoo_script /mnt/gentoo/ ; any_key ; clear ; chroot_menu ;;
+        5) clear ; chroot /mnt/gentoo ./gentoo_script -c ; clear ;; #unmount_gentoo ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function mount_gentoo(){
+    echo "Mounting the necessary filesystems"
+    mount --types proc /proc /mnt/gentoo/proc
+    mount --rbind /sys /mnt/gentoo/sys
+    mount --make-rslave /mnt/gentoo/sys
+    mount --rbind /dev /mnt/gentoo/dev
+    mount --make-rslave /mnt/gentoo/dev
+    mount --bind /run /mnt/gentoo/run
+    mount --make-slave /mnt/gentoo/run
+    test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+    mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm 2>/dev/null
+    chmod 1777 /dev/shm /run/shm
+}
+
+function umount_gentoo(){
+aa
+}
+
+function disclaimer_install(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Base"
+    echo
+    echo -e "The link for the Gentoo Handbook for the network part is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+    echo 
+    echo -e "For enabling the ${c1}binary repository${c0}, you must use the same profile"
+    echo -e "that you chose in the ${c1}stage3${c0} menu. Futhermore, you must use the"
+    echo -e "same profile that you chose in the ${c1}eselect profile${c0}"
+    echo
+    echo -e "To edit the ${c1}USE${c0} flags, you can run the editor and add, for example,"
+    echo -e "USE=\"dist-kernel bluetooth pulseaudio gnome gtk X wayland networkmanager\""
+    echo 
+    echo -e "For complete the edit of make.conf file, you can/must insert another flag for"
+    echo -e "the video cards. Use the variable ${c1}VIDEO_CARDS${c0}. For example:"
+    echo -e "VIDEO_CARDS=\"amdgpu radeonsi nvidia\""
+}
+
+function installation_menu(){
+    title "${1}"
+    echo -e "${c1}Installation menu${c0}"
+    disclaimer_install
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) Edit make.conf (nano)
+    ${c1}2${c0}) (chroot) fdisk -l
+    ${c1}3${c0}) (chroot) Mount EFI in /efi (insert partition)
+    ${c1}4${c0}) (chroot) Initial sync
+    ${c1}5${c0}) (chroot) Select mirrors
+    ${c1}6${c0}) (chroot) Select profile
+    ${c1}7${c0}) (chroot) Enabling binary packages
+    ${c1}8${c0}) (chroot) Set CPU_FLAGS_*
+    ${c1}9${c0}) (chroot) Set ACCEPT_LICENSE
+    ${c1}10${c0}) (chroot) Update @world set
+    ${c1}11${c0}) (chroot) Remove obsolete packages
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1) clear ; nano "/etc/portage/make.conf" ; clear ; installation_menu ;;
+        2) clear ; fdisk -l | less ; clear ; installation_menu ;;
+        3) clear ; mount "${menu_2}" /efi ; clear ; installation_menu ;;
+        4) clear ; emerge-webrsync ; any_key ; clear ; installation_menu ;; 
+        5) clear ; select_mirrors ; any_key ; clear ; installation_menu ;; 
+        6) clear ; select_profile ; any_key ; clear ; installation_menu ;;
+        7) clear ; select_bin_repos ; clear ; installation_menu ;;
+        8) clear ; set_cpu_flags ; any_key ; clear ; installation_menu ;;
+        9) clear ; set_licence ; any_key ; clear ; installation_menu  ;;
+        10) clear ; update-world ; any_key ; clear ; installation_menu  ;;
+        11) clear ; emerge --ask --depclean ; any_key ; clear ; installation_menu  ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function select_mirrors(){
+    emerge --oneshot app-portage/mirrorselect
+    mirrorselect -i -o >> /etc/portage/make.conf
+    emerge --sync
+}
+
+function select_profile(){
+    echo -e "Available ${c1}profiles${c0}"
+    eselect profile list | less
+    read -e choose_profile
+    eselect profile set "${choose_profile}"
+}
+
+function select_bin_repos(){
+    echo -ne "
+#
+# The default repository is: https://distfiles.gentoo.org/releases/<arch>/binpackages/<profile>/x86-64/
+# <arch> is usually amd64, and <profile> depends which one you choose in the section select profile.
+# <profile> is the number used in select profile, e.g, in the profile
+# [63] default/linux/amd64/23.0/x32/systemd
+# <profile> is 23.0
+#" >> /etc/portage/binrepos.conf/gentoobinhost.conf
+    nano /etc/portage/binrepos.conf/gentoobinhost.conf
+    echo -ne "
+# Appending getbinpkg to the list of values within the FEATURES variable
+FEATURES="${FEATURES} getbinpkg"
+# Require signatures
+FEATURES="${FEATURES} binpkg-request-signature"
+#" >> /etc/portage/make.conf
+    getuto
+}
+
+function set_cpu_flags(){
+    emerge --oneshot app-portage/cpuid2cpuflags
+    echo "*/* $(cpuid2cpuflags)" >> /etc/portage/package.use/cpu-flags
+}
+
+function set_licence(){
+    echo "ACCEPT_LICENSE=\"*\"" >> /etc/portage/make.conf
+}
+
+function update-world(){
+    emerge --ask --verbose --update --deep --newuse @world
+}
+
+
+
+
+
+
+function disclaimer_system(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Base"
+    echo
+    echo -e "The link for the Gentoo Handbook is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function system_menu_systemd(){
+    title "${1}"
+    echo -e "${c1}System menu (systemd)${c0}"
+    disclaimer_system
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) Set timezone (${c1}list${c0}, ${c1}search${c0} or ${c1}set${c0})
+    ${c1}2${c0}) (chroot) Configure locales (${c1}list${c0}, ${c1}search${c0}, ${c1}set${c0} or ${c1}verify${c0})
+    ${c1}3${c0}) (chroot) Edit and generate locales (${c1}edit${c0} or ${c1}generate${c0})
+    ${c1}4${c0}) (chroot) Select locales (${c1}list${c0} or ${c1}select${c0})
+    ${c1}5${c0}) (chroot) Install microcode (${c1}AMD${c0} or ${c1}Intel${c0})
+    ${c1}6${c0}) (chroot) Kernel (${c1}gentoo-bin${c0}, ${c1}gentoo-kernel${c0}, ${c1}module-rebuild${c0}, ${c1}dracut${c0} or ${c1}initramfs${c0})
+    ${c1}7${c0}) (chroot) Generate fstab
+    ${c1}8${c0}) (chroot) Hostname (${c1}edit${c0} or ${c1}set.${c0})
+    ${c1}9${c0}) (chroot) Network (${c1}install${c0}, ${c1}set-localhost${c0} or ${c1}edit.${c0})
+    ${c1}10${c0}) (chroot) Set root password
+    ${c1}11${c0}) (chroot) Systemd setup
+    ${c1}12${c0}) (chroot) Time syncronization (${c1}chrony${c0} or ${c1}systemd${c0}.)
+    ${c1}13${c0}) (chroot) Filesystems (${c1}all${c0}, ${c1}XFS${c0}, ${c1}ext4${c0}, ${c1}VFAT${c0}, ${c1}btrfs${c0}, ${c1}ZFS${c0}, ${c1}JFS${c0} or ${c1}nvme${c0})
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        1 | timezone) systemd_timezones "${menu_2}" "${menu_3}"; any_key ; clear ; system_menu_systemd ;;
+        2) configure_locales "${menu_2}" "${menu_3}" ; any_key ; clear ; system_menu_systemd ;;
+        3) generate_locales "${menu_2}" ; any_key ; clear ; system_menu_systemd ;;
+        4) select_locales "${menu_2}" "${menu_3}"; any_key ; clear ; system_menu_systemd ;;
+        5) install_microcode "${menu_2}" ; any_key ; clear ; system_menu_systemd ;;
+        6) install_kernel "${menu_2}" "${menu_3}"; any_key ; clear ; system_menu_systemd ;;
+        7) generate_fstab ; clear ; system_menu_systemd ;;
+        8) set_hostname "${menu_2}" "${menu_3}"; any_key ; clear ; system_menu_systemd ;;
+        9) install_networkmanager "${menu_2}" "${menu_3}"; any_key ; clear ; system_menu_systemd ;;
+        10) set_root_password ; clear ; system_menu_systemd ;;
+        11) clear ; systemd_initial_setup ; any_key ; clear ; system_menu_systemd ;;
+        12) systemd_time_sync ; clear ; system_menu_systemd ;;
+        13) install_filesystems "${menu_2}" "${menu_3}" "${menu_3}" "${menu_4}" "${menu_5}" "${menu_6}" ; clear ; system_menu_systemd ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+function systemd_timezones(){
+    if [[ $1 == "list" ]]; then
+        ls --color=auto "/usr/share/zoneinfo/${2}"
+    elif [[ $1 == "search" ]]; then
+        timezone_search=$(ls "/usr/share/zoneinfo/${2}" | grep "${2}")
+        if [[ $timezone_search == *"${2}"* ]]; then
+            echo -e "${green}Timezone found${c0}"
+            echo "${timezone_search}"
+        else
+            echo -e "${red}Timezone not found${c0}"
+        fi
+    elif [[ $1 == "set" ]]; then
+        ln -sf "/usr/share/zoneinfo/${2}" "/etc/localtime"
+    else
+    echo -e "Action not found. Use ${c1}list${c0}, ${c1}search${c0} or ${c1}set${c0}"
+    fi
+}
+
+function configure_locales(){
+    if [[ $1 == "list" ]]; then
+        cat /usr/share/i18n/SUPPORTED | less
+    elif [[ $1 == "search" ]]; then
+        locale_search=$(cat "/usr/share/i18n/SUPPORTED" | grep "${2}")
+        if [[ $locale_search == *"${2}"* ]]; then
+            echo -e "${green}Locale found${c0}"
+            echo "${locale_search}"
+        else
+            echo -e "${red}Locale not found${c0}"
+        fi
+    elif [[ $1 == "set" ]]; then
+        locale_search=$(cat "/usr/share/i18n/SUPPORTED" | grep "${2}")
+        if [ -z "${locale_search}" ]; then
+            echo -e "${red}Locale not inserted${c0}"
+        else
+            echo "$locale_search" >> "/etc/locale.gen" && echo -e "${green}Locale inserted${c0}" 
+        fi
+    elif [[ $1 == "verify" ]]; then
+        cat "/etc/locale.gen"
+    else
+        echo -e "Action not found. Use ${c1}list${c0}, ${c1}search${c0}, ${c1}set${c0} or ${c1}verify${c0}"
+    fi
+}
+
+function generate_locales(){
+     if [[ $1 == "edit" ]]; then
+        nano "/etc/locale.gen"
+    elif [[ $1 == "generate" ]]; then
+        locale-gen
+    else
+        echo -e "Action not found. Use ${c1}edit${c0} or ${c1} generate ${c0}"
+    fi
+}
+
+function select_locales(){
+    if [[ $1 == "list" ]]; then
+        eselect locale list
+    elif [[ $1 == "select" ]]; then
+        eselect locale select "${2}"
+        env-update
+    else
+        echo -e "Action not found. Use ${c1}edit${c0} or ${c1} select ${c0}"
+    fi
+}
+
+function install_microcode(){
+    if [[ $1 == "amd" ]]; then
+        emerge sys-kernel/linux-firmware
+    elif [[ $1 == "AMD" ]]; then
+        emerge sys-kernel/linux-firmware
+    elif [[ $1 == "intel" ]]; then
+        emerge sys-kernel/linux-firmware
+        emerge sys-firmware/intel-microcode
+    elif [[ $1 == "Intel" ]]; then
+        emerge sys-kernel/linux-firmware
+        emerge sys-firmware/intel-microcode
+    else
+        echo -e "Action not found. Use ${c1}AMD/amd${c0} or ${c1}Intel/intel${c0}"
+    fi
+}
+
+function install_kernel(){
+    if [[ $1 == "gentoo-bin" ]]; then
+        emerge "sys-kernel/gentoo-kernel-bin"
+    elif [[ $1 == "gentoo-kernel" ]]; then
+        emerge "sys-kernel/gentoo-kernel"
+    elif [[ $1 == "module-rebuild" ]]; then
+        emerge "@module-rebuild"
+    elif [[ $1 == "dracut" ]]; then
+        emerge "sys-kernel/dracut"
+    elif [[ $1 == "initramfs" ]]; then
+        dracut --kver="$(uname -r)"
+    else
+        echo -e "Action not found. Use ${c1}gentoo-bin${c0}, ${c1}gentoo-kernel${c0}, ${c1}module-rebuild${c0}, ${c1}dracut${c0} or ${c1}initramfs${c0}"
+    fi
+}
+
+function generate_fstab(){
+    emerge --oneshot sys-fs/genfstab
+    genfstab -U / >> /etc/fstab
+}
+
+function set_hostname(){
+    if [[ $1 == "edit" ]]; then
+        nano "/etc/hostname"
+    elif [[ $1 == "set" ]]; then
+        echo "${2}" > /etc/hostname
+    else
+        echo -e "Action not found. Use ${c1}edit${c0} or ${c1}set.${c0}"
+    fi
+}
+
+function install_networkmanager(){
+    if [[ $1 == "install" ]]; then
+        emerge net-misc/networkmanager
+    elif [[ $1 == "set-localhost" ]]; then
+        echo "127.0.0.1       localhost" >> /etc/hosts
+        echo "::1       localhost" >> /etc/hosts
+    elif [[ $1 == "edit" ]]; then
+        nano /etc/hosts
+    else
+        echo -e "Action not found. Use ${c1}install${c0}, ${c1}set-localhost${c0} or ${c1}edit.${c0}"
+    fi
+}
+
+function set_root_password(){
+    passwd
+}
+
+function systemd_initial_setup(){
+    systemd-machine-id-setup && echo -e "${green} Systemd setup "
+    systemd-firstboot --prompt && echo -e "${green} Systemd first boot"
+    systemctl preset-all --preset-mode=enable-only && echo -e "${green} Systemd reset all unit"
+    systemctl preset-all && echo -e "${green} Systemd enable all preset"
+    systemctl enable NetworkManager && echo -e "${green} Systemd enable Network Manager"
+}
+
+function systemd_time_sync(){
+    if [[ $1 == "chrony" ]]; then
+        emerge net-misc/chrony
+        systemctl enable chronyd.service
+    elif [[ $1 == "systemd" ]]; then
+        systemctl enable systemd-timesyncd.service
+    else
+        echo -e "Action not found. Use ${c1}chrony${c0}, or ${c1}systemd${c0}."
+    fi
+}
+
+function install_filesystems(){
+    if [[ "$@" == "all" ]]; then
+        emerge "sys-fs/xfsprogs sys-fs/e2fsprogs sys-fs/dosfstools\
+        sys-fs/btrfs-progs sys-fs/zfs sys-fs/jfsutils\
+        sys-block/io-scheduler-udev-rules"
+    elif [[ "$@" == "XFS" ]]; then
+        emerge sys-fs/xfsprogs
+    elif [[ "$@" == "ext4" ]]; then
+        emerge sys-fs/e2fsprogs
+    elif [[ "$@" == "VFAT" ]]; then
+        emerge sys-fs/dosfstools
+    elif [[ "$@" == "btrfs" ]]; then
+        emerge sys-fs/btrfs-progs
+    elif [[ "$@" == "ZFS" ]]; then
+        emerge sys-fs/zfs
+    elif [[ "$@" == "JFS" ]]; then
+        emerge sys-fs/jfsutils
+    elif [[ "$@" == "nvme" ]]; then
+        emerge sys-block/io-scheduler-udev-rules
+    else
+        echo -e "Action not found. Use ${c1}all${c0}, ${c1}XFS${c0}, ${c1}ext4${c0}, ${c1}VFAT${c0}, ${c1}btrfs${c0}, ${c1}ZFS${c0}, ${c1}JFS${c0} or ${c1}nvme${c0}."
+    fi
+}
+
+function system_menu_openrc(){
+    title "${1}"
+    echo -e "${c1}System menu (openrc)${c0}"
+    disclaimer_system
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) Set timezone
+    ${c1}2${c0}) (chroot) Configure locales
+    ${c1}3${c0}) (chroot) Generate locales
+    ${c1}4${c0}) (chroot) Select locales (using eselect) + env-update
+    ${c1}5${c0}) (chroot) Install microcode (AMD or Intel)
+    ${c1}6${c0}) (chroot) gentoo-kernel-bin
+    ${c1}7${c0}) (chroot) fstab
+    ${c1}8${c0}) (chroot) Hostname
+    ${c1}9${c0}) (chroot) Network (using networkmanager)
+    ${c1}10${c0}) (chroot) Set root password
+    ${c1}11${c0}) (chroot) Edit rc.conf file
+    ${c1}12${c0}) (chroot) Edit /etc/conf.d/keymaps
+    ${c1}13${c0}) (chroot) Edit /etc/conf.d/hwclock
+    ${c1}14${c0}) (chroot) Logger (sysklogd or syslog-ng or metalog)
+    ${c1}15${c0}) (chroot) Cron daemon (cronie or dcron or fcron or bcron)
+    ${c1}16${c0}) (chroot) Time syncronization
+    ${c1}17${c0}) (chroot) Filesystems
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        #1) clear ; ; clear ; system_menu_openrc ;;
+        #2) clear ;  ;;
+        #3) clear ;  ;;
+        #4) clear ;  ;; 
+        #5) clear ;  ;; 
+        #6) clear ;  ;;
+        #7) clear ;  ;;
+        #8) clear ;  ;;
+        #9) clear ; ;;
+        #10) clear ;  ;;
+        #11) clear ; ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+
+
+
+
+
+
+
+
+
+function disclaimer_bootloader(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Bootloader"
+    echo
+    echo -e "The link for the Gentoo Handbook is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function bootloader_menu(){
+    title "${1}"
+    echo -e "${c1}Bootloader menu${c0}"
+    disclaimer_bootloader
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) grub
+    ${c1}2${c0}) (chroot) LILO
+    ${c1}3${c0}) (chroot) EFI Stub
+    ${c1}4${c0}) (chroot) Syslinux
+    ${c1}5${c0}) (chroot) systemd-boot
+    ${c1}6${c0}) (chroot) Secure-boot
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        #1) clear ; ; clear ; bootloader_menu ;;
+        #2) clear ;  ;;
+        #3) clear ;  ;;
+        #4) clear ;  ;; 
+        #5) clear ;  ;; 
+        #6) clear ;  ;;
+        #7) clear ;  ;;
+        #8) clear ;  ;;
+        #9) clear ; ;;
+        #10) clear ;  ;;
+        #11) clear ; ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+# Change GRUB_PLATFORMS in make.conf
+# emerge grub
+# grub-install  
+
+function install_grub(){
+aa
+}
+
+
+
+function user_add(){
+aa
+}
+
+function install_gnome(){
+aa
+}
+
+
+function disclaimer_finishing(){
+    gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Bootloader"
+    echo
+    echo -e "The link for the Gentoo Handbook is:"
+    echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function finish_menu(){
+    title "${1}"
+    echo -e "${c1}Finish menu${c0}"
+    disclaimer_bootloader
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) Add a user (user)
+    ${c1}2${c0}) (chroot) Set a password (user)
+    ${c1}5${c0}) (chroot) exit 
+    ${c1}6${c0}) umount
+    ${c1}7${c0}) reboot 
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        #1) clear ; ; clear ; bootloader_menu ;;
+        #2) clear ;  ;;
+        #3) clear ;  ;;
+        #4) clear ;  ;; 
+        #5) clear ;  ;; 
+        #6) clear ;  ;;
+        #7) clear ;  ;;
+        #8) clear ;  ;;
+        #9) clear ; ;;
+        #10) clear ;  ;;
+        #11) clear ; ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+
+
+function disclaimer_extra(){
+    #gentoo_link="https://wiki.gentoo.org/wiki/Handbook:AMD64/Installation/Bootloader"
+    echo
+    #echo -e "The link for the Gentoo Handbook is:"
+    #echo -e "${c1}${gentoo_link}${c0}."
+}
+
+function extra_menu(){
+    title "${1}"
+    echo -e "${c1}Extra menu${c0}"
+    disclaimer_extra
+    echo
+    echo -ne "
+    ${c1}1${c0}) (chroot) Install nvidia-drivers (proprietary)
+    ${c1}2${c0}) (chroot) Install gnome-ultra-light
+    ${c1}5${c0}) (chroot) Install fuse and ntfs3g
+    ${c1}6${c0}) (chroot) Install chrome
+    ${c1}7${c0}) (chroot) Install firefox
+
+    ${c1}man${c0}) Manual
+    ${c1}r${c0}) Return to the main menu
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+    case $menu in
+        #1) clear ; ; clear ; bootloader_menu ;;
+        #2) clear ;  ;;
+        #3) clear ;  ;;
+        #4) clear ;  ;; 
+        #5) clear ;  ;; 
+        #6) clear ;  ;;
+        #7) clear ;  ;;
+        #8) clear ;  ;;
+        #9) clear ; ;;
+        #10) clear ;  ;;
+        #11) clear ; ;;
+        man) clear ; ;;
+        r) clear ; main_menu ;;
+        q) clear ; exit 0 ;;
+    esac
+}
+
+
+
+
+function parser(){
+    while getopts "hvc" flag; do
+        case $flag in
+            h) help=1 ;;
+            v) version=1 ;;
+            c) chroot_use=1 ;;
+        esac
+    done
+}
+
+function version(){
+    echo "gentoo_script version 0.1 - Daniele Pozzebon (2024)"
+}
+
+function help(){
+    echo "This script is used for install Gentoo-Linux in a faster way than using"
+    echo "the Handbook"
+}
+
+main (){
+    help=0
+    version=0
+    chroot_use=0
+    trap 'main' SIGINT # prevent to exit with CTRL+C
+    parser ${@}
+    if [[ $help == 1 ]]; then
+        help
+    elif  [[ $version == 1 ]]; then
+        version
+    else
+        clear
+        main_menu
+    fi
+}
+
+main ${@}
+
+
+
+
+
