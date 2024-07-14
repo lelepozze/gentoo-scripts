@@ -1,0 +1,191 @@
+#!/bin/bash
+#
+#
+
+
+c0="\e[38m\033[0m" # alias white normal
+c1="\e[35m\033[1m" # alias purple bold
+c2="\e[37m\033[1m" # alias grey bold
+c3="\e[38m\033[1m" # alias white bold
+
+red="\e[31m\033[1m"
+blue="\e[34m\033[1m"
+green="\e[32m\033[1m"
+yellow="\e[33m\033[1m"
+
+
+function any_key(){
+    echo
+    echo -e "Press ${c1}any${c0} key to continue..."
+    read
+}
+#░
+
+function improved_read(){
+    read -ep $'\e[35m\033[1m>\e[38m\033[0m\e[38m\033[1m ' menu menu_2 menu_3 menu_4 menu_5 menu_6 menu_7 menu_8 menu_9 menu_10
+    echo -ne "${c0}"
+}
+
+function update_dimensions(){
+    while true; do
+        terminal_columns=$(tput cols)
+        sleep 0.1
+        return $terminal_columns
+    done
+}
+
+function title(){
+    if [[ $UID == 0 ]]; then
+        #echo -e "${red}($(whoami))${c1} gentoo ${c0}"
+        while true; do
+            terminal_columns=$(tput cols)
+            sleep 0.1
+        done
+        j=1
+        while [[ j -le $terminal_columns ]]; do
+            echo -ne "░"
+            j=$(( $j + 1 ))
+        done
+        echo -ne "${c1}░░░░░░░░░░ Gentoo "
+        i=19
+        while [[ i -le $terminal_columns ]]; do
+            echo -ne "░"
+            i=$(( $i + 1 ))
+        done
+        echo -ne "${c0}"
+    else
+        echo -e "${green}($(whoami))${c1} gentoo ${c0}"
+    fi
+}
+
+function main_menu(){
+    title "${1}"
+    echo -ne "
+    ${c1}1${c0}) Sync repository
+    ${c1}2${c0}) Update system
+    ${c1}3${c0}) Edit make.conf
+    ${c1}4${c0}) files
+    ${c1}5${c0}) 
+    ${c1}6${c0}) 
+    ${c1}7${c0}) 
+    ${c1}8${c0}) 
+    ${c1}9${c0}) 
+    ${c1}0${c0}) 
+    ${c1}r${c0}) ${c1}execute${c0} a program
+    ${c1}c${c0}) Clean
+    ${c1}q${c0}) Quit
+    "
+    echo
+    improved_read "$@"
+        case $menu in
+            1 | sync) clear ; sync ; any_key ; clear ; main_menu ;;
+            2 | update) clear ; update ; any_key ; clear ; main_menu ;;
+            3) ;;
+	        4) clear ; files ; loop_improved_read "$@" ; clear ; main_menu ;;
+            5) ;;
+            6) ;;
+            7) ;;
+            8) ;;
+            9) ;;
+            0) ;;
+            r | execute) execute "${menu_2}" ; loop_improved_read "$@"; clear ; main_menu ;;
+            c | clear) clear ; main_menu ;;
+            q | quit) clear; exit 0; exit 0;;
+            *) clear ; main_menu ;;
+        esac
+}
+
+function loop_improved_read(){
+    while true; do
+        improved_read "$@"
+        if [[ $menu == "q" ]]; then
+            break
+        elif [[ $menu == "exit" ]]; then
+            break
+        fi
+    done
+}
+
+function check_root(){
+    if [[ $UID == 0 ]]; then
+        check_root=1
+    else
+        check_root=0
+    fi
+}
+
+function require_root(){
+    check_root
+    if [[ $check_root == 0 ]]; then
+        sudo $@
+    else
+    $@
+    fi 
+}
+
+function sync(){
+    require_root "emaint -a sync"
+}
+
+function update(){
+    require_root "emerge --update --deep --newuse --with-bdeps=y @world"
+}
+
+
+function execute(){
+    $@
+}
+
+
+function files(){
+    ls -lah --color=auto
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function parser(){
+    while getopts "hv" flag; do
+        case $flag in
+            h) help=1 ;;
+            v) version=1 ;;
+        esac
+    done
+}
+
+function version(){
+    echo "gentoo_script version 0.1 - Daniele Pozzebon (2024)"
+}
+
+function help(){
+    echo " Title Here "
+}
+
+main (){
+    help=0
+    version=0
+    trap 'main' SIGINT # prevent to exit with CTRL+C
+    parser ${@}
+    if [[ $help == 1 ]]; then
+        help
+    elif  [[ $version == 1 ]]; then
+        version
+    else
+        clear
+        main_menu
+    fi
+}
+
+main ${@}
