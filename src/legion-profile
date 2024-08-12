@@ -1,0 +1,83 @@
+#/bin/bash
+
+# This program is used for simplify the changing of profile for the program
+# LenovoLegionLinux. In the first place, it exposed the file
+# /sys/firmware/acpi/platform_profile and after that it modify according to
+# the insert plan. For listing the available plans, there is a command.
+#
+
+function change_permission () {
+	chmod 777 /sys/firmware/acpi/platform_profile
+}
+
+function revert_permission () {
+	chmod 644 /sys/firmware/acpi/platform_profile
+}
+
+function select_profile () {
+	echo ${@} > /sys/firmware/acpi/platform_profile
+}
+
+function secure_select_profile () {
+	echo TBH
+}
+
+function list () {
+	cat /sys/firmware/acpi/platform_profile_choices
+}
+
+function assure_root_permission () {
+	if [[ $UID != 0 ]]; then
+        echo -e "Run this script as root"
+		exit 1
+    fi
+}
+
+function parser() {
+    while getopts "hvl" flag; do
+        case $flag in
+            h) help=1 ;;
+            v) version=1 ;;
+			l) list=1 ;;
+        esac
+    done
+}
+
+function version() {
+    echo " LenovoLegionLinux change profile version 0.1 - Daniele Pozzebon (2024)"
+}
+
+function help() {
+    echo "This program is used for simplify the changing of profile for LenovoLegionLinux"
+}
+
+function no_argument() {
+		if [ $# -eq 0 ]; then
+    		echo "legion-profile: No arguments provided"
+			echo "Try 'legion-profile -h' for more information." 
+    		exit 1
+		fi
+}
+
+function main () {
+	help=0
+    version=0
+	list=0
+	no_argument ${@}
+	assure_root_permission
+	parser ${@}
+	if [[ $help == 1 ]]; then
+        help
+    elif  [[ $version == 1 ]]; then
+        version
+	elif [[ $list == 1 ]]; then
+		list
+    else
+			change_permission
+        	select_profile ${@}
+			revert_permission
+    fi
+
+}
+
+main ${@}
