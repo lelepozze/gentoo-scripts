@@ -44,7 +44,7 @@ function parser() {
 }
 
 function version() {
-    echo " LenovoLegionLinux change profile version 0.1 - Daniele Pozzebon (2024)"
+    echo "LenovoLegionLinux change profile version 0.1 - Daniele Pozzebon (2024)"
 }
 
 function help() {
